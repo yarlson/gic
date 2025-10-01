@@ -130,6 +130,12 @@ func Run(accessToken string) error {
 
 	sp.Stop("Analysis complete", 0)
 
+	// Check if there are any changes to commit
+	if diff == "" || strings.TrimSpace(diff) == "" {
+		tap.Message("No changes to commit")
+		return nil
+	}
+
 	// Show status in a box (clean up each line)
 	tap.Box(cleanStatus(status), " 📝 Repository Status ", tap.BoxOptions{
 		TitleAlign:     tap.BoxAlignLeft,
@@ -209,6 +215,7 @@ func cleanStatus(s string) string {
 		result.WriteString(cleaned)
 		result.WriteString("\n")
 	}
+
 	return strings.TrimSuffix(result.String(), "\n")
 }
 
@@ -306,13 +313,18 @@ Recent Commits (for style reference):
 %s
 `+"```"+`
 
-Generate a commit message that:
+IMPORTANT: Your entire response must be ONLY the commit message text itself.
+Do NOT include:
+- Any analysis or explanation
+- Prefixes like "Claude:", "Here's", "Based on"
+- Phrases like "I'll analyze" or "my suggested commit message is"
+- Signatures or attributions
+
+Write a commit message that:
 1. Summarizes the changes concisely (1-2 sentences)
 2. Focuses on WHY rather than WHAT
-3. Do not include signatures or AI attributions ("Generated with…" or "Co-Authored-By")
-4. Do not include any prefixes like "Claude:"
 
-Return ONLY the commit message, no explanations.`, status, diff, contextNote, log)
+Start your response directly with the commit message text.`, status, diff, contextNote, log)
 
 	return client.Ask(accessToken, prompt)
 }
