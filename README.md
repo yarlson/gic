@@ -45,38 +45,6 @@ Simply run `gic` in any git repository:
 5. **Validation** - Shows proposed message for review
 6. **Create Commit** - Creates the commit with generated message
 
-**First run example:**
-```
-🔐 No authentication token found. Starting OAuth flow...
-
-Please visit this URL to authorize:
-https://claude.ai/oauth/authorize?...
-
-Paste the full code here (format: code#state): [paste code]
-
-✓ Authorization successful!
-
-📦 Staging all changes...
-🔍 Analyzing repository changes...
-🤖 Generating commit message...
-📋 Proposed commit message:
-    Add intelligent commit message generation
-
-    Integrated Claude API to analyze git changes...
-
-Proceed with commit? [y/N]: y
-💾 Creating commit...
-✅ Commit created!
-```
-
-**Subsequent runs:**
-```
-📦 Staging all changes...
-🔍 Analyzing repository changes...
-🤖 Generating commit message...
-[... commit workflow ...]
-```
-
 ## How it works
 
 1. **Token Check**: Loads existing OAuth token or initiates authentication
@@ -91,6 +59,7 @@ Proceed with commit? [y/N]: y
 ## Token Storage
 
 Tokens are stored securely at:
+
 - macOS/Linux: `~/.config/gic/tokens.json`
 - Windows: `%APPDATA%\gic\tokens.json`
 
@@ -105,21 +74,6 @@ When dealing with massive diffs that exceed Claude's context window:
 3. **Smart Prioritization** - Sorts by size (smallest first = better signal-to-noise)
 4. **Budget Management** - Fills context up to ~500K characters (~125K tokens)
 5. **Transparency** - Claude is informed which files were excluded
-
-Example output for large changesets:
-```
-⚠️  Large changeset detected, selecting most relevant files...
-
-Changed Files Summary:
-  src/utils.go: +12 -5 lines
-  docs/README.md: +23 -8 lines
-  package-lock.json: +5234 -4821 lines
-
-Detailed Diffs (selected files):
-[diffs for utils.go and README.md]
-
-[Note: Diffs excluded for 1 large files: package-lock.json]
-```
 
 ## Project Structure
 
