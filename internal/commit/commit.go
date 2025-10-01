@@ -343,6 +343,7 @@ Do NOT include:
 Write a commit message that:
 1. Summarizes the changes concisely (1-2 sentences)
 2. Focuses on WHY rather than WHAT
+3. Follows the style of recent commits shown above
 
 Start your response directly with the commit message text.`, status, diff, contextNote, log, userInputSection)
 

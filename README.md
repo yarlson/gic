@@ -16,7 +16,7 @@
 ## Installation
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/yarlson/gic.git
 cd gic
 go build
 ```
