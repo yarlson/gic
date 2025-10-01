@@ -137,11 +137,12 @@ func Run(accessToken string) error {
 	}
 
 	// Show status in a box (clean up each line)
-	tap.Box(cleanStatus(status), " 📝 Repository Status ", tap.BoxOptions{
+	tap.Box(fmt.Sprintf("\n%s", cleanStatus(status)), " 📝 Repository Status ", tap.BoxOptions{
 		TitleAlign:     tap.BoxAlignLeft,
 		ContentAlign:   tap.BoxAlignLeft,
 		ContentPadding: 1,
 		Rounded:        true,
+		FormatBorder:   tap.CyanBorder,
 	})
 
 	// Step 3: Check if we need smart diff selection
@@ -170,11 +171,12 @@ func Run(accessToken string) error {
 	sp.Stop("Commit message generated", 0)
 
 	// Show proposed commit message
-	tap.Box(commitMsg, " 📋 Proposed Commit Message ", tap.BoxOptions{
+	tap.Box(fmt.Sprintf("\n%s\n", commitMsg), " 📋 Proposed Commit Message ", tap.BoxOptions{
 		TitleAlign:     tap.BoxAlignLeft,
 		ContentAlign:   tap.BoxAlignLeft,
 		ContentPadding: 1,
 		Rounded:        true,
+		FormatBorder:   tap.CyanBorder,
 	})
 
 	// Step 5: Ask for confirmation
