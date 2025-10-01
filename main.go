@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gic/internal/auth"
 	"gic/internal/commit"
+
+	"github.com/yarlson/tap"
 )
 
 func main() {
@@ -28,8 +32,7 @@ func run() error {
 	token, err := auth.Load(tokenPath)
 	if err != nil || token == nil {
 		// No token found, run OAuth flow
-		fmt.Println("🔐 No authentication token found. Starting OAuth flow...")
-		fmt.Println()
+		tap.Intro("🔐 Authentication Required")
 
 		token, err = performOAuthFlow(tokenPath)
 		if err != nil {
@@ -48,32 +51,52 @@ func run() error {
 }
 
 func performOAuthFlow(tokenPath string) (*auth.Token, error) {
+	ctx := context.Background()
+
 	// Use claude.ai OAuth (Pro/Max)
 	authURL, verifier, err := auth.BuildAuthURL(false)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("Please visit this URL to authorize:\n\n%s\n\n", authURL)
-	fmt.Print("Paste the full code here (format: code#state): ")
+	tap.Message("Please visit this URL to authorize:")
+	tap.Box(authURL, "Authorization URL", tap.BoxOptions{
+		TitleAlign:   tap.BoxAlignLeft,
+		ContentAlign: tap.BoxAlignLeft,
+		Rounded:      true,
+	})
 
-	var authCode string
-	if _, err := fmt.Scanln(&authCode); err != nil {
-		return nil, fmt.Errorf("failed to read code: %w", err)
+	authCode := tap.Text(ctx, tap.TextOptions{
+		Message:     "Paste the authorization code here:",
+		Placeholder: "code#state",
+		Validate: func(s string) error {
+			if !strings.Contains(s, "#") {
+				return fmt.Errorf("code should be in format: code#state")
+			}
+			return nil
+		},
+	})
+
+	if authCode == "" {
+		return nil, fmt.Errorf("authorization cancelled")
 	}
+
+	sp := tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
+	sp.Start("Exchanging authorization code for token...")
 
 	token, err := auth.ExchangeCode(authCode, verifier)
 	if err != nil {
+		sp.Stop("Failed to exchange code", 2)
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 
 	if err := auth.Save(token, tokenPath); err != nil {
+		sp.Stop("Failed to save token", 2)
 		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
-	fmt.Println()
-	fmt.Println("✓ Authorization successful!")
-	fmt.Println()
+	sp.Stop("Authorization successful!", 0)
+	tap.Outro("You're all set! 🎉")
 
 	return token, nil
 }

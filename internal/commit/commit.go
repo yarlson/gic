@@ -1,14 +1,20 @@
 package commit
 
 import (
+	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
 	"gic/internal/client"
 	"gic/internal/git"
+
+	"github.com/yarlson/tap"
 )
+
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
 const (
 	// Conservative limit: ~125K tokens (500K chars ≈ 125K tokens at 4 chars/token)
@@ -20,16 +26,23 @@ const (
 
 // Run executes the commit workflow.
 func Run(accessToken string) error {
+	ctx := context.Background()
+
 	// Step 1: Stage all changes first
-	fmt.Println("📦 Staging all changes...")
+	sp := tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
+	sp.Start("Staging all changes...")
 
 	if err := git.Add("."); err != nil {
+		sp.Stop("Failed to stage changes", 2)
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
 
-	fmt.Println("🔍 Analyzing repository changes...")
+	sp.Stop("Changes staged", 0)
 
 	// Step 2: Gather git information in parallel
+	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
+	sp.Start("Analyzing repository changes...")
+
 	var (
 		status, diff, log string
 		fileStats         []git.FileChange
@@ -111,11 +124,18 @@ func Run(accessToken string) error {
 	wg.Wait()
 
 	if len(errs) > 0 {
+		sp.Stop("Analysis failed", 2)
 		return errs[0]
 	}
 
-	fmt.Println("📝 Status:")
-	fmt.Println(status)
+	sp.Stop("Analysis complete", 0)
+
+	// Show status in a box (clean up each line)
+	tap.Box(cleanStatus(status), "📝 Repository Status", tap.BoxOptions{
+		TitleAlign:   tap.BoxAlignLeft,
+		ContentAlign: tap.BoxAlignLeft,
+		Rounded:      true,
+	})
 
 	// Step 3: Check if we need smart diff selection
 	totalSize := len(status) + len(diff) + len(log) + promptOverhead
@@ -123,7 +143,7 @@ func Run(accessToken string) error {
 	var smartDiff string
 
 	if totalSize > maxPromptChars {
-		fmt.Println("\n⚠️  Large changeset detected, selecting most relevant files...")
+		tap.Message("⚠️  Large changeset detected, selecting most relevant files...")
 
 		smartDiff = buildSmartDiff(fileStats, diff, maxPromptChars-len(status)-len(log)-promptOverhead)
 	} else {
@@ -131,37 +151,63 @@ func Run(accessToken string) error {
 	}
 
 	// Step 4: Generate commit message with Claude
-	fmt.Println("\n🤖 Generating commit message...")
+	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
+	sp.Start("Generating commit message with Claude...")
 
 	commitMsg, err := generateCommitMessage(accessToken, status, smartDiff, log, fileStats)
 	if err != nil {
+		sp.Stop("Failed to generate commit message", 2)
 		return fmt.Errorf("failed to generate commit message: %w", err)
 	}
 
-	fmt.Printf("\n📋 Proposed commit message:\n%s\n\n", commitMsg)
+	sp.Stop("Commit message generated", 0)
+
+	// Show proposed commit message
+	tap.Box(commitMsg, "📋 Proposed Commit Message", tap.BoxOptions{
+		TitleAlign:   tap.BoxAlignLeft,
+		ContentAlign: tap.BoxAlignLeft,
+		Rounded:      true,
+	})
 
 	// Step 5: Ask for confirmation
-	fmt.Print("Proceed with commit? [y/N]: ")
+	proceed := tap.Confirm(ctx, tap.ConfirmOptions{
+		Message:      "Proceed with commit?",
+		Active:       "Yes",
+		Inactive:     "No",
+		InitialValue: true,
+	})
 
-	var proceed string
-	if _, err := fmt.Scanln(&proceed); err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
-	}
-
-	if strings.ToLower(proceed) != "y" {
+	if !proceed {
 		return fmt.Errorf("commit cancelled")
 	}
 
 	// Step 6: Create commit
-	fmt.Println("\n💾 Creating commit...")
+	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
+	sp.Start("Creating commit...")
 
 	if err := git.Commit(commitMsg); err != nil {
+		sp.Stop("Failed to create commit", 2)
 		return fmt.Errorf("failed to create commit: %w", err)
 	}
 
-	fmt.Println("✅ Commit created!")
+	sp.Stop("Commit created!", 0)
+	tap.Outro("All done! ✅")
 
 	return nil
+}
+
+// cleanStatus strips ANSI codes and trailing whitespace from each line.
+func cleanStatus(s string) string {
+	var result strings.Builder
+	for _, line := range strings.Split(s, "\n") {
+		// Strip ANSI codes
+		cleaned := ansiRegex.ReplaceAllString(line, "")
+		// Trim trailing whitespace
+		cleaned = strings.TrimRight(cleaned, " \t\r")
+		result.WriteString(cleaned)
+		result.WriteString("\n")
+	}
+	return strings.TrimSuffix(result.String(), "\n")
 }
 
 // buildSmartDiff creates an intelligent diff when the full diff is too large.
@@ -204,6 +250,7 @@ func buildSmartDiff(fileStats []git.FileChange, fullDiff string, budget int) str
 
 		if usedBudget+estimatedSize > budget {
 			excludedPaths = append(excludedPaths, stat.Path)
+
 			continue
 		}
 

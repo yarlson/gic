@@ -17,7 +17,7 @@ type FileChange struct {
 
 // Status returns the output of git status.
 func Status() (string, error) {
-	return run("status")
+	return run("status", "--porcelain")
 }
 
 // Diff returns the output of git diff (staged and unstaged), excluding lock files.
