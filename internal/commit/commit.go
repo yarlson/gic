@@ -25,7 +25,7 @@ const (
 )
 
 // Run executes the commit workflow.
-func Run(accessToken string) error {
+func Run(accessToken, userInput string) error {
 	ctx := context.Background()
 
 	tap.Intro("🤖 Git Commit Assistant")
@@ -166,7 +166,7 @@ func Run(accessToken string) error {
 	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
 	sp.Start("Generating commit message with Claude")
 
-	commitMsg, err := generateCommitMessage(accessToken, status, smartDiff, log, fileStats)
+	commitMsg, err := generateCommitMessage(accessToken, status, smartDiff, log, fileStats, userInput)
 	if err != nil {
 		sp.Stop("Failed to generate commit message", 2)
 		return fmt.Errorf("failed to generate commit message: %w", err)
@@ -296,13 +296,24 @@ func buildSmartDiff(fileStats []git.FileChange, fullDiff string, budget int) str
 }
 
 // generateCommitMessage uses Claude to generate a commit message.
-func generateCommitMessage(accessToken, status, diff, log string, fileStats []git.FileChange) (string, error) {
+func generateCommitMessage(accessToken, status, diff, log string, fileStats []git.FileChange, userInput string) (string, error) {
 	// Check if we have file stats and diff looks like our smart diff
 	hasSmartDiff := len(fileStats) > 0 && strings.Contains(diff, "Changed Files Summary:")
 
 	contextNote := ""
 	if hasSmartDiff {
 		contextNote = "\n(Note: Due to large changeset, detailed diffs shown for selected files only. Use summary above for full picture.)\n"
+	}
+
+	userInputSection := ""
+	if userInput != "" {
+		userInputSection = fmt.Sprintf(`
+
+User Input:
+`+"```"+`
+%s
+`+"```"+`
+`, userInput)
 	}
 
 	prompt := fmt.Sprintf(`Analyze the following git repository state and generate a concise commit message.
@@ -320,7 +331,7 @@ Git Diff:
 Recent Commits (for style reference):
 `+"```"+`
 %s
-`+"```"+`
+`+"```"+`%s
 
 IMPORTANT: Your entire response must be ONLY the commit message text itself.
 Do NOT include:
@@ -333,7 +344,7 @@ Write a commit message that:
 1. Summarizes the changes concisely (1-2 sentences)
 2. Focuses on WHY rather than WHAT
 
-Start your response directly with the commit message text.`, status, diff, contextNote, log)
+Start your response directly with the commit message text.`, status, diff, contextNote, log, userInputSection)
 
 	return client.Ask(accessToken, prompt)
 }

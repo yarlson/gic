@@ -14,13 +14,16 @@ import (
 )
 
 func main() {
-	if err := run(); err != nil {
+	// Capture additional user input from command line args
+	userInput := strings.Join(os.Args[1:], " ")
+
+	if err := run(userInput); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(userInput string) error {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get config dir: %w", err)
@@ -47,7 +50,7 @@ func run() error {
 	}
 
 	// Run commit workflow
-	return commit.Run(token.AccessToken)
+	return commit.Run(token.AccessToken, userInput)
 }
 
 func performOAuthFlow(tokenPath string) (*auth.Token, error) {
