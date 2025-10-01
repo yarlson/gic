@@ -73,7 +73,8 @@ Subsequent runs use the saved token automatically.
 
 Tokens are stored at:
 
-- **macOS/Linux**: `~/.config/gic/tokens.json`
+- **macOS**: `~/Library/Application Support/gic/tokens.json`
+- **Linux**: `~/.config/gic/tokens.json`
 - **Windows**: `%APPDATA%\gic\tokens.json`
 
 File permissions: `0600` (owner read/write only)
