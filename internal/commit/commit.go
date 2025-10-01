@@ -28,20 +28,22 @@ const (
 func Run(accessToken string) error {
 	ctx := context.Background()
 
+	tap.Intro("🤖 Git Commit Assistant")
+
 	// Step 1: Stage all changes first
 	sp := tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Staging all changes...")
+	sp.Start("Staging all changes")
 
 	if err := git.Add("."); err != nil {
 		sp.Stop("Failed to stage changes", 2)
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
 
-	sp.Stop("Changes staged", 0)
+	sp.Stop("Changes staged      ", 0)
 
 	// Step 2: Gather git information in parallel
 	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Analyzing repository changes...")
+	sp.Start("Analyzing repository changes")
 
 	var (
 		status, diff, log string
@@ -137,11 +139,13 @@ func Run(accessToken string) error {
 	}
 
 	// Show status in a box (clean up each line)
-	tap.Box(fmt.Sprintf("\n%s", cleanStatus(status)), " 📝 Repository Status ", tap.BoxOptions{
+	tap.Box(cleanStatus(status), "📝 Repository Status", tap.BoxOptions{
 		TitleAlign:     tap.BoxAlignLeft,
 		ContentAlign:   tap.BoxAlignLeft,
+		TitlePadding:   1,
 		ContentPadding: 1,
 		Rounded:        true,
+		IncludePrefix:  true,
 		FormatBorder:   tap.CyanBorder,
 	})
 
@@ -160,7 +164,7 @@ func Run(accessToken string) error {
 
 	// Step 4: Generate commit message with Claude
 	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Generating commit message with Claude...")
+	sp.Start("Generating commit message with Claude")
 
 	commitMsg, err := generateCommitMessage(accessToken, status, smartDiff, log, fileStats)
 	if err != nil {
@@ -171,11 +175,13 @@ func Run(accessToken string) error {
 	sp.Stop("Commit message generated", 0)
 
 	// Show proposed commit message
-	tap.Box(fmt.Sprintf("\n%s\n", commitMsg), " 📋 Proposed Commit Message ", tap.BoxOptions{
+	tap.Box(commitMsg, "📋 Proposed Commit Message", tap.BoxOptions{
 		TitleAlign:     tap.BoxAlignLeft,
 		ContentAlign:   tap.BoxAlignLeft,
+		TitlePadding:   1,
 		ContentPadding: 1,
 		Rounded:        true,
+		IncludePrefix:  true,
 		FormatBorder:   tap.CyanBorder,
 	})
 
@@ -188,12 +194,13 @@ func Run(accessToken string) error {
 	})
 
 	if !proceed {
+		tap.Message("Commit cancelled")
 		return fmt.Errorf("commit cancelled")
 	}
 
 	// Step 6: Create commit
 	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Creating commit...")
+	sp.Start("Creating commit")
 
 	if err := git.Commit(commitMsg); err != nil {
 		sp.Stop("Failed to create commit", 2)
