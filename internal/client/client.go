@@ -124,7 +124,7 @@ func Ask(accessToken, prompt string) (string, error) {
 	client := anthropic.NewClient(option.WithHTTPClient(httpClient))
 
 	message, err := client.Messages.New(context.Background(), anthropic.MessageNewParams{
-		Model:     "claude-3-7-sonnet-20250219",
+		Model:     "claude-sonnet-4-5",
 		MaxTokens: 2048,
 		System: []anthropic.TextBlockParam{
 			{

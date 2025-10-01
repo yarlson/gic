@@ -131,10 +131,11 @@ func Run(accessToken string) error {
 	sp.Stop("Analysis complete", 0)
 
 	// Show status in a box (clean up each line)
-	tap.Box(cleanStatus(status), "📝 Repository Status", tap.BoxOptions{
-		TitleAlign:   tap.BoxAlignLeft,
-		ContentAlign: tap.BoxAlignLeft,
-		Rounded:      true,
+	tap.Box(cleanStatus(status), " 📝 Repository Status ", tap.BoxOptions{
+		TitleAlign:     tap.BoxAlignLeft,
+		ContentAlign:   tap.BoxAlignLeft,
+		ContentPadding: 1,
+		Rounded:        true,
 	})
 
 	// Step 3: Check if we need smart diff selection
@@ -163,10 +164,11 @@ func Run(accessToken string) error {
 	sp.Stop("Commit message generated", 0)
 
 	// Show proposed commit message
-	tap.Box(commitMsg, "📋 Proposed Commit Message", tap.BoxOptions{
-		TitleAlign:   tap.BoxAlignLeft,
-		ContentAlign: tap.BoxAlignLeft,
-		Rounded:      true,
+	tap.Box(commitMsg, " 📋 Proposed Commit Message ", tap.BoxOptions{
+		TitleAlign:     tap.BoxAlignLeft,
+		ContentAlign:   tap.BoxAlignLeft,
+		ContentPadding: 1,
+		Rounded:        true,
 	})
 
 	// Step 5: Ask for confirmation
@@ -290,19 +292,25 @@ func generateCommitMessage(accessToken, status, diff, log string, fileStats []gi
 	prompt := fmt.Sprintf(`Analyze the following git repository state and generate a concise commit message.
 
 Git Status:
+`+"```"+`
 %s
+`+"```"+`
 
 Git Diff:
+`+"```"+`
 %s%s
+`+"```"+`
 
 Recent Commits (for style reference):
+`+"```"+`
 %s
+`+"```"+`
 
 Generate a commit message that:
 1. Summarizes the changes concisely (1-2 sentences)
 2. Focuses on WHY rather than WHAT
-3. Follows the style of recent commits
-4. Do not include signatures or AI attributions (e.g. "Claude: ", "Generated with…" or "Co-Authored-By")
+3. Do not include signatures or AI attributions ("Generated with…" or "Co-Authored-By")
+4. Do not include any prefixes like "Claude:"
 
 Return ONLY the commit message, no explanations.`, status, diff, contextNote, log)
 
