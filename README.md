@@ -29,6 +29,8 @@ mv gic /usr/local/bin/
 
 ## Usage
 
+### Interactive Mode
+
 Run `gic` in any git repository:
 
 ```bash
@@ -45,6 +47,48 @@ gic refactored for performance
 ```
 
 The text after `gic` is passed to Claude as additional context.
+
+### MCP Server Mode
+
+Start an MCP (Model Context Protocol) server to expose git commit functionality to Claude Desktop or other MCP clients:
+
+```bash
+gic mcp
+```
+
+This starts a stdio-based MCP server that provides:
+
+**Tools:**
+
+- `generate_commit_message` - Analyze git changes and generate a commit message
+  - Input: `user_context` (optional) - Additional context about changes
+  - Output: Generated commit message
+- `create_commit` - Stage all changes and create a commit
+  - Input: `user_context` (optional), `message` (optional) - Custom message or context
+  - Output: Commit hash and message
+
+**Resources:**
+
+- `git://status` - Current git repository status
+- `git://diff` - Current git diff (staged and unstaged changes)
+- `git://recent-commits` - Recent commit history (last 10 commits)
+
+#### Using with Claude Desktop
+
+Add to your Claude Desktop MCP settings (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "gic": {
+      "command": "/path/to/gic",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+After restarting Claude Desktop, you can ask Claude to generate commit messages or create commits for your git repositories.
 
 ### First run
 

@@ -9,11 +9,22 @@ import (
 
 	"gic/internal/auth"
 	"gic/internal/commit"
+	"gic/internal/mcp"
 
 	"github.com/yarlson/tap"
 )
 
 func main() {
+	// Check if first argument is "mcp" subcommand
+	if len(os.Args) > 1 && os.Args[1] == "mcp" {
+		if err := runMCP(); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		return
+	}
+
 	// Capture additional user input from command line args
 	userInput := strings.Join(os.Args[1:], " ")
 
@@ -102,4 +113,30 @@ func performOAuthFlow(tokenPath string) (*auth.Token, error) {
 	tap.Outro("You're all set! 🎉")
 
 	return token, nil
+}
+
+func runMCP() error {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return fmt.Errorf("failed to get config dir: %w", err)
+	}
+
+	tokenPath := filepath.Join(configDir, "gic", "tokens.json")
+
+	// Try to load existing token
+	token, err := auth.Load(tokenPath)
+	if err != nil || token == nil {
+		return fmt.Errorf("authentication required: please run 'gic' first to authenticate")
+	}
+
+	// Ensure token is valid (refresh if needed)
+	token, err = auth.EnsureValid(token, tokenPath, auth.ClientID, auth.TokenURL)
+	if err != nil {
+		return fmt.Errorf("failed to get valid token: %w", err)
+	}
+
+	// Create and run MCP server
+	server := mcp.NewServer(token.AccessToken, tokenPath)
+
+	return server.Run(context.Background())
 }
