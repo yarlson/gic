@@ -24,7 +24,7 @@ type Server struct {
 // NewServer creates a new MCP server instance.
 func NewServer(accessToken, tokenPath string) *Server {
 	impl := &mcp.Implementation{
-		Name:    "gic-mcp-server",
+		Name:    "gic",
 		Version: "1.0.0",
 	}
 
@@ -79,8 +79,11 @@ func (s *Server) registerTools() {
 	mcp.AddTool(
 		s.server,
 		&mcp.Tool{
-			Name:        "generate_commit_message",
-			Description: "Analyze git changes and generate an intelligent commit message using Claude AI",
+			Name: "generate_commit_message",
+			Description: "IMPORTANT: Use this tool whenever the user asks to generate a commit message, create a commit, or commit changes. " +
+				"This tool analyzes git changes and generates an intelligent, contextual commit message using Claude AI. " +
+				"It automatically stages changes, reviews diffs, and creates a commit message that explains WHY changes were made, not just WHAT changed. " +
+				"The generated message follows the repository's commit style by analyzing recent commits.",
 		},
 		s.handleGenerateCommitMessage,
 	)
@@ -89,8 +92,12 @@ func (s *Server) registerTools() {
 	mcp.AddTool(
 		s.server,
 		&mcp.Tool{
-			Name:        "create_commit",
-			Description: "Stage all changes and create a git commit with a generated or provided message",
+			Name: "create_commit",
+			Description: "IMPORTANT: Use this tool whenever the user asks to commit changes, create a commit, or save work to git. " +
+				"This tool stages all changes and creates a git commit with either a generated or provided message. " +
+				"If no message is provided, it will automatically generate an intelligent commit message using Claude AI. " +
+				"Use this tool instead of manual git commands when the user wants to commit their work. " +
+				"Optionally provide user_context to guide the commit message generation (e.g., 'fixed bug in authentication' or 'added new feature').",
 		},
 		s.handleCreateCommit,
 	)
