@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/anthropics/anthropic-sdk-go v1.13.0
 	github.com/modelcontextprotocol/go-sdk v1.0.0
-	github.com/yarlson/tap v0.9.0
+	github.com/yarlson/tap v0.10.1
 )
 
 require (
