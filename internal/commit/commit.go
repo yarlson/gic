@@ -31,20 +31,11 @@ func Run(accessToken, userInput string) error {
 	tap.Intro("🤖 Git Commit Assistant")
 
 	// Step 1: Stage all changes first
-	sp := tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Staging all changes")
-
 	if err := git.Add("."); err != nil {
-		sp.Stop("Failed to stage changes", 2)
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
 
-	sp.Stop("Changes staged      ", 0)
-
 	// Step 2: Gather git information in parallel
-	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Analyzing repository changes")
-
 	var (
 		status, diff, log string
 		fileStats         []git.FileChange
@@ -126,11 +117,8 @@ func Run(accessToken, userInput string) error {
 	wg.Wait()
 
 	if len(errs) > 0 {
-		sp.Stop("Analysis failed", 2)
 		return errs[0]
 	}
-
-	sp.Stop("Analysis complete", 0)
 
 	// Check if there are any changes to commit
 	if diff == "" || strings.TrimSpace(diff) == "" {
@@ -163,7 +151,7 @@ func Run(accessToken, userInput string) error {
 	}
 
 	// Step 4: Generate commit message with Claude
-	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
+	sp := tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
 	sp.Start("Generating commit message with Claude")
 
 	commitMsg, err := generateCommitMessage(accessToken, status, smartDiff, log, fileStats, userInput)
@@ -172,7 +160,7 @@ func Run(accessToken, userInput string) error {
 		return fmt.Errorf("failed to generate commit message: %w", err)
 	}
 
-	sp.Stop("Commit message generated", 0)
+	sp.Stop("Commit message generated               ", 0)
 
 	// Show proposed commit message
 	tap.Box(commitMsg, "📋 Proposed Commit Message", tap.BoxOptions{
