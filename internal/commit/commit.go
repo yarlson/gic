@@ -203,17 +203,21 @@ func Run(accessToken, userInput string) error {
 
 // cleanStatus strips ANSI codes and trailing whitespace from each line.
 func cleanStatus(s string) string {
-	var result strings.Builder
+	var cleanedLines []string
+
 	for _, line := range strings.Split(s, "\n") {
 		// Strip ANSI codes
 		cleaned := ansiRegex.ReplaceAllString(line, "")
 		// Trim trailing whitespace
 		cleaned = strings.TrimRight(cleaned, " \t\r")
-		result.WriteString(cleaned)
-		result.WriteString("\n")
+		if strings.Trim(cleaned, " \t\r") == "" {
+			continue
+		}
+
+		cleanedLines = append(cleanedLines, cleaned)
 	}
 
-	return strings.TrimSuffix(result.String(), "\n")
+	return strings.Join(cleanedLines, "\n")
 }
 
 // buildSmartDiff creates an intelligent diff when the full diff is too large.
