@@ -6,7 +6,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.13.0
 	github.com/modelcontextprotocol/go-sdk v1.0.0
 	github.com/stretchr/testify v1.11.1
-	github.com/yarlson/tap v0.10.3
+	github.com/yarlson/tap v0.10.4
 )
 
 require (
