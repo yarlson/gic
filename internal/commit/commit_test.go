@@ -286,10 +286,11 @@ func (s *CommitTestSuite) TestEmptyRepositoryHandling() {
 	emptyDir, err := os.MkdirTemp("", "gic-empty-*")
 	require.NoError(s.T(), err)
 
-	defer os.RemoveAll(emptyDir)
+	defer func() { _ = os.RemoveAll(emptyDir) }()
 
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
+
+	defer func() { _ = os.Chdir(oldDir) }()
 
 	err = os.Chdir(emptyDir)
 	require.NoError(s.T(), err)

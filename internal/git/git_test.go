@@ -388,7 +388,7 @@ func (s *GitTestSuite) TestIsAheadOfRemote() {
 	err = os.MkdirAll(remoteDir, 0755)
 	require.NoError(s.T(), err)
 
-	defer os.RemoveAll(remoteDir)
+	defer func() { _ = os.RemoveAll(remoteDir) }()
 
 	cmd := exec.Command("git", "init", "--bare", remoteDir)
 	err = cmd.Run()
@@ -402,13 +402,13 @@ func (s *GitTestSuite) TestIsAheadOfRemote() {
 	// Push to remote
 	cmd = exec.Command("git", "push", "-u", "origin", "master")
 
-	output, err := cmd.CombinedOutput()
+	_, err = cmd.CombinedOutput()
 	if err != nil {
 		// Try "main" branch if "master" doesn't exist
 		cmd = exec.Command("git", "branch", "-M", "main")
 		_ = cmd.Run()
 		cmd = exec.Command("git", "push", "-u", "origin", "main")
-		output, err = cmd.CombinedOutput()
+		output, err := cmd.CombinedOutput()
 		require.NoError(s.T(), err, "git push failed: %s", string(output))
 	}
 

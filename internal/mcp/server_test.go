@@ -109,9 +109,9 @@ func (s *MCPTestSuite) handleMockAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Return a mock commit message
 	response := map[string]interface{}{
-		"id":      "msg_123",
-		"type":    "message",
-		"role":    "assistant",
+		"id":   "msg_123",
+		"type": "message",
+		"role": "assistant",
 		"content": []map[string]string{
 			{
 				"type": "text",
@@ -149,7 +149,6 @@ func (s *MCPTestSuite) TestServerInitialization() {
 	// 3. Register tools (generate_commit_message, create_commit)
 	// 4. Register resources (git://status, git://diff, git://recent-commits)
 	// 5. Store access token and token path
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
@@ -169,7 +168,6 @@ func (s *MCPTestSuite) TestToolRegistration() {
 	//    - Input: user_context (optional), message (optional)
 	//    - Output: commit_hash, message, success, error
 	//    - Behavior: Stages changes and creates commit
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
@@ -183,7 +181,6 @@ func (s *MCPTestSuite) TestResourceRegistration() {
 	// 1. git://status - Current repository status
 	// 2. git://diff - Staged and unstaged changes
 	// 3. git://recent-commits - Last 10 commits
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
@@ -252,6 +249,7 @@ func (s *MCPTestSuite) TestTokenRefreshHandling() {
 			"refresh_token": "new-refresh-token",
 			"expires_in":    3600,
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(response)
@@ -276,7 +274,6 @@ func (s *MCPTestSuite) TestErrorHandlingNoChanges() {
 	// When there are no changes to commit, the tools should:
 	// - generate_commit_message: Return error "no changes to commit"
 	// - create_commit: Return success=false with error message
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
@@ -299,7 +296,6 @@ func (s *MCPTestSuite) TestErrorHandlingGitFailure() {
 	// - Return appropriate error messages
 	// - Not create commits
 	// - Maintain safe state
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
@@ -311,6 +307,7 @@ func (s *MCPTestSuite) TestSmartDiffInMCP() {
 	// Create large changeset
 	for i := 0; i < 100; i++ {
 		content := string(make([]byte, 10000))
+
 		err := os.WriteFile(filepath.Join(s.tmpDir, "large"+string(rune(i))+".txt"), []byte(content), 0644)
 		if err != nil {
 			break
@@ -458,7 +455,6 @@ func (s *MCPTestSuite) TestMCPServerBehaviorDocumentation() {
 	// - Git operations run in parallel with sync.WaitGroup
 	// - Errors collected with mutex
 	// - First error returned if any occur
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
@@ -477,7 +473,6 @@ func (s *MCPTestSuite) TestMCPToolInputValidation() {
 	// - Message string (optional)
 	//
 	// Both are optional, allowing flexible usage
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
@@ -496,7 +491,6 @@ func (s *MCPTestSuite) TestMCPToolOutputFormat() {
 	// - Message string (the commit message used)
 	// - Success bool (whether commit succeeded)
 	// - Error string (optional, error message if failed)
-
 	server := mcp.NewServer(s.accessToken, s.tokenPath)
 	assert.NotNil(s.T(), server)
 
