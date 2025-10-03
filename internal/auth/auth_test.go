@@ -169,6 +169,7 @@ func (s *AuthTestSuite) TestExchangeCode() {
 
 		// Parse request body
 		var reqBody map[string]string
+
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
 		require.NoError(s.T(), err)
 
@@ -184,6 +185,7 @@ func (s *AuthTestSuite) TestExchangeCode() {
 			"refresh_token": "mock-refresh-token",
 			"expires_in":    3600,
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(response)
@@ -222,6 +224,7 @@ func (s *AuthTestSuite) TestRefresh() {
 		assert.Equal(s.T(), "POST", r.Method)
 
 		var reqBody map[string]string
+
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
 		require.NoError(s.T(), err)
 
@@ -235,6 +238,7 @@ func (s *AuthTestSuite) TestRefresh() {
 			"refresh_token": "new-refresh-token",
 			"expires_in":    3600,
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(response)
@@ -285,6 +289,7 @@ func (s *AuthTestSuite) TestEnsureValid() {
 
 	// Create mock token server
 	refreshCalled := false
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		refreshCalled = true
 		response := map[string]interface{}{
@@ -292,6 +297,7 @@ func (s *AuthTestSuite) TestEnsureValid() {
 			"refresh_token": "refreshed-refresh-token",
 			"expires_in":    3600,
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(response)

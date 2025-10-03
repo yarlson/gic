@@ -41,6 +41,7 @@ func (s *ClientTestSuite) TestCreateAPIKey() {
 		response := map[string]string{
 			"raw_key": "sk-ant-test-api-key-123456",
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(response)
@@ -60,7 +61,6 @@ func (s *ClientTestSuite) TestCreateAPIKey() {
 func (s *ClientTestSuite) TestCreateAPIKeyUnauthorized() {
 	// Note: This test documents expected behavior
 	// In production, we'd inject dependencies to test properly
-
 	_, err := client.CreateAPIKey("")
 	assert.Error(s.T(), err)
 }
@@ -84,6 +84,7 @@ func (s *ClientTestSuite) TestAsk() {
 func (s *ClientTestSuite) TestOAuthTransport() {
 	// Create a test HTTP server that echoes back request headers
 	headersCaptured := make(map[string]string)
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		headersCaptured["Authorization"] = r.Header.Get("Authorization")
 		headersCaptured["anthropic-version"] = r.Header.Get("anthropic-version")
@@ -135,6 +136,7 @@ func (s *ClientTestSuite) TestCreateAPIKeyResponseParsing() {
 		response := map[string]string{
 			"raw_key": "sk-ant-test-key",
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(response)
@@ -201,6 +203,7 @@ func (s *ClientTestSuite) TestAskIntegration() {
 		require.NoError(s.T(), err)
 
 		var reqBody map[string]interface{}
+
 		err = json.Unmarshal(body, &reqBody)
 		require.NoError(s.T(), err)
 
@@ -211,9 +214,9 @@ func (s *ClientTestSuite) TestAskIntegration() {
 
 		// Return mock response
 		response := map[string]interface{}{
-			"id":      "msg_123",
-			"type":    "message",
-			"role":    "assistant",
+			"id":   "msg_123",
+			"type": "message",
+			"role": "assistant",
 			"content": []map[string]string{
 				{
 					"type": "text",
@@ -277,7 +280,6 @@ func (s *ClientTestSuite) TestClientBehaviorDocumentation() {
 	//    - Add Authorization: Bearer <token> header
 	//    - Add anthropic-version header
 	//    - Add anthropic-beta header for OAuth
-
 	s.T().Log("Client behavior documented")
 }
 

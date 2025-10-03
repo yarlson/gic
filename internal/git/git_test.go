@@ -211,6 +211,7 @@ func (s *GitTestSuite) TestDiffStat() {
 
 	// Find stats for each file
 	var file1Stat, file2Stat *git.FileChange
+
 	for i := range stats {
 		if stats[i].Path == "file1.txt" {
 			file1Stat = &stats[i]
@@ -386,6 +387,7 @@ func (s *GitTestSuite) TestIsAheadOfRemote() {
 	remoteDir := filepath.Join(s.tmpDir, "..", "remote")
 	err = os.MkdirAll(remoteDir, 0755)
 	require.NoError(s.T(), err)
+
 	defer os.RemoveAll(remoteDir)
 
 	cmd := exec.Command("git", "init", "--bare", remoteDir)
@@ -399,6 +401,7 @@ func (s *GitTestSuite) TestIsAheadOfRemote() {
 
 	// Push to remote
 	cmd = exec.Command("git", "push", "-u", "origin", "master")
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Try "main" branch if "master" doesn't exist
