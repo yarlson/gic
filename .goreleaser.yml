@@ -92,7 +92,7 @@ release:
     
     ```bash
     # Quick install
-    curl -sSL https://raw.githubusercontent.com/yarlson/gic/main/install.sh | bash
+    curl -sSL https://raw.githubusercontent.com/yarlson/gic/master/install.sh | bash
     
     # Homebrew
     brew tap yarlson/gic

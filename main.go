@@ -11,27 +11,94 @@ import (
 	"gic/internal/commit"
 	"gic/internal/mcp"
 
+	"github.com/spf13/cobra"
 	"github.com/yarlson/tap"
 )
 
-func main() {
-	// Check if first argument is "mcp" subcommand
-	if len(os.Args) > 1 && os.Args[1] == "mcp" {
-		if err := runMCP(); err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
+// version metadata is injected via ldflags; defaults cover local builds.
+var (
+	version   = "dev"
+	buildTime = "unknown"
+)
 
-		return
+var (
+	showVersion bool
+
+	rootCmd = &cobra.Command{
+		Use:           "gic [commit-message]",
+		Short:         "Generate polished git commits with AI assistance",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Args:          cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if showVersion {
+				printVersion()
+				return nil
+			}
+
+			userInput := strings.Join(args, " ")
+
+			return run(userInput)
+		},
 	}
 
-	// Capture additional user input from command line args
-	userInput := strings.Join(os.Args[1:], " ")
+	mcpCmd = &cobra.Command{
+		Use:           "mcp",
+		Short:         "Start the MCP server for Claude Desktop integration",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if showVersion {
+				printVersion()
+				return nil
+			}
 
-	if err := run(userInput); err != nil {
+			return runMCP()
+		},
+	}
+
+	versionCmd = &cobra.Command{
+		Use:           "version",
+		Short:         "Show build metadata",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			printVersion()
+		},
+	}
+)
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
+	rootCmd.AddCommand(mcpCmd)
+	rootCmd.AddCommand(versionCmd)
+}
+
+func printVersion() {
+	tap.Intro("📦 gic")
+
+	tap.Box(
+		fmt.Sprintf("Version:    %s\nBuilt:      %s", version, buildTime),
+		"Build Details",
+		tap.BoxOptions{
+			TitleAlign:     tap.BoxAlignLeft,
+			ContentAlign:   tap.BoxAlignLeft,
+			TitlePadding:   1,
+			ContentPadding: 1,
+			Rounded:        true,
+			IncludePrefix:  true,
+			FormatBorder:   tap.CyanBorder,
+		},
+	)
+
+	tap.Outro("Run `gic` without flags to launch the assistant ✨")
 }
 
 func run(userInput string) error {
