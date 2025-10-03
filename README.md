@@ -15,16 +15,48 @@
 
 ## Installation
 
+### Quick Install (Recommended)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/yarlson/gic/master/install.sh | bash
+```
+
+The installer automatically detects your OS and architecture, downloads the appropriate binary, and installs it to `/usr/local/bin`.
+
+To install a specific version:
+
+```bash
+# Using environment variable
+gic_VERSION=v0.2.0 curl -sSL https://raw.githubusercontent.com/yarlson/gic/master/install.sh | bash
+
+# Using positional argument
+curl -sSL https://raw.githubusercontent.com/yarlson/gic/master/install.sh | bash -s v0.2.0
+```
+
+### Homebrew
+
+```bash
+brew tap yarlson/gic
+brew install gic
+```
+
+### Manual Download
+
+Download the appropriate archive for your platform from the [releases page](https://github.com/yarlson/gic/releases):
+
+```bash
+# Extract and install
+tar -xzf gic_*.tar.gz
+sudo mv gic /usr/local/bin/
+```
+
+### Build from Source
+
 ```bash
 git clone https://github.com/yarlson/gic.git
 cd gic
 go build
-```
-
-Move the binary to your PATH:
-
-```bash
-mv gic /usr/local/bin/
+sudo mv gic /usr/local/bin/
 ```
 
 ## Usage
@@ -50,7 +82,7 @@ The text after `gic` is passed to Claude as additional context.
 
 ### MCP Server Mode
 
-Start an MCP (Model Context Protocol) server to expose git commit functionality to Claude Desktop or other MCP clients:
+Start an MCP (Model Context Protocol) server to expose git commit functionality to Claude Code or other MCP clients:
 
 ```bash
 gic mcp
@@ -73,9 +105,9 @@ This starts a stdio-based MCP server that provides:
 - `git://diff` - Current git diff (staged and unstaged changes)
 - `git://recent-commits` - Recent commit history (last 10 commits)
 
-#### Using with Claude Desktop
+#### Using with Claude Code
 
-Add to your Claude Desktop MCP settings (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Add to your Claude Code MCP settings:
 
 ```json
 {
@@ -88,7 +120,7 @@ Add to your Claude Desktop MCP settings (`~/Library/Application Support/Claude/c
 }
 ```
 
-After restarting Claude Desktop, you can ask Claude to generate commit messages or create commits for your git repositories.
+After restarting Claude Code, you can ask Claude to generate commit messages or create commits for your git repositories.
 
 ### First run
 
