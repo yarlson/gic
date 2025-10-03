@@ -122,7 +122,7 @@ func Run(accessToken, userInput string) error {
 
 	// Check if there are any changes to commit
 	if diff == "" || strings.TrimSpace(diff) == "" {
-		tap.Message("No changes to commit")
+		tap.Outro("No changes to commit")
 		return nil
 	}
 
