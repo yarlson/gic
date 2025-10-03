@@ -87,6 +87,7 @@ func performOAuthFlow(tokenPath string) (*auth.Token, error) {
 			if !strings.Contains(s, "#") {
 				return fmt.Errorf("code should be in format: code#state")
 			}
+
 			return nil
 		},
 	})
