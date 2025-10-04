@@ -134,7 +134,7 @@ func Run(accessToken, userInput string, autoApprove bool) error {
 		ContentPadding: 1,
 		Rounded:        true,
 		IncludePrefix:  true,
-		FormatBorder:   tap.CyanBorder,
+		FormatBorder:   tap.GrayBorder,
 	})
 
 	// Step 3: Check if we need smart diff selection
@@ -170,7 +170,7 @@ func Run(accessToken, userInput string, autoApprove bool) error {
 		ContentPadding: 1,
 		Rounded:        true,
 		IncludePrefix:  true,
-		FormatBorder:   tap.CyanBorder,
+		FormatBorder:   tap.GrayBorder,
 	})
 
 	// Step 5: Ask for confirmation unless auto-approval requested

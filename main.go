@@ -96,7 +96,7 @@ func printVersion() {
 			ContentPadding: 1,
 			Rounded:        true,
 			IncludePrefix:  true,
-			FormatBorder:   tap.CyanBorder,
+			FormatBorder:   tap.GrayBorder,
 		},
 	)
 
@@ -147,6 +147,7 @@ func performOAuthFlow(tokenPath string) (*auth.Token, error) {
 		TitleAlign:   tap.BoxAlignLeft,
 		ContentAlign: tap.BoxAlignLeft,
 		Rounded:      true,
+		FormatBorder: tap.GrayBorder,
 	})
 
 	authCode := tap.Text(ctx, tap.TextOptions{
