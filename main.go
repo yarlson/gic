@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gic/internal/app"
 	"gic/internal/auth"
-	"gic/internal/commit"
 	"gic/internal/mcp"
 
 	"github.com/spf13/cobra"
@@ -130,7 +130,7 @@ func run(userInput string) error {
 	}
 
 	// Run commit workflow
-	return commit.Run(token.AccessToken, userInput, autoApprove)
+	return app.Run(token.AccessToken, userInput, autoApprove)
 }
 
 func performOAuthFlow(tokenPath string) (*auth.Token, error) {

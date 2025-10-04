@@ -1,17 +1,13 @@
 package commit
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 
 	"gic/internal/client"
 	"gic/internal/git"
-
-	"github.com/yarlson/tap"
 )
 
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
@@ -19,196 +15,13 @@ var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 const (
 	// Conservative limit: ~125K tokens (500K chars ≈ 125K tokens at 4 chars/token)
 	// Leaves room for system prompt + response
-	maxPromptChars = 500000
+	MaxPromptChars = 500000
 	// Reserve space for prompt template overhead (~2K chars)
-	promptOverhead = 2000
+	PromptOverhead = 2000
 )
 
-// Run executes the commit workflow.
-func Run(accessToken, userInput string, autoApprove bool) error {
-	ctx := context.Background()
-
-	tap.Intro("🤖 Git Commit Assistant")
-
-	// Step 1: Stage all changes first
-	if err := git.Add("."); err != nil {
-		return fmt.Errorf("failed to stage changes: %w", err)
-	}
-
-	// Step 2: Gather git information in parallel
-	var (
-		status, diff, log string
-		fileStats         []git.FileChange
-		errs              []error
-		wg                sync.WaitGroup
-		mu                sync.Mutex
-	)
-
-	wg.Add(4)
-
-	go func() {
-		defer wg.Done()
-
-		s, err := git.Status()
-		if err != nil {
-			mu.Lock()
-
-			errs = append(errs, fmt.Errorf("git status failed: %w", err))
-
-			mu.Unlock()
-
-			return
-		}
-
-		status = s
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		stats, err := git.DiffStat()
-		if err != nil {
-			mu.Lock()
-
-			errs = append(errs, fmt.Errorf("git diff stat failed: %w", err))
-
-			mu.Unlock()
-
-			return
-		}
-
-		fileStats = stats
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		d, err := git.Diff()
-		if err != nil {
-			mu.Lock()
-
-			errs = append(errs, fmt.Errorf("git diff failed: %w", err))
-
-			mu.Unlock()
-
-			return
-		}
-
-		diff = d
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		l, err := git.Log()
-		if err != nil {
-			mu.Lock()
-
-			errs = append(errs, fmt.Errorf("git log failed: %w", err))
-
-			mu.Unlock()
-
-			return
-		}
-
-		log = l
-	}()
-
-	wg.Wait()
-
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	// Check if there are any changes to commit
-	if diff == "" || strings.TrimSpace(diff) == "" {
-		tap.Outro("No changes to commit")
-		return nil
-	}
-
-	// Show status in a box (clean up each line)
-	tap.Box(cleanStatus(status), "📝 Repository Status", tap.BoxOptions{
-		TitleAlign:     tap.BoxAlignLeft,
-		ContentAlign:   tap.BoxAlignLeft,
-		TitlePadding:   1,
-		ContentPadding: 1,
-		Rounded:        true,
-		IncludePrefix:  true,
-		FormatBorder:   tap.GrayBorder,
-	})
-
-	// Step 3: Check if we need smart diff selection
-	totalSize := len(status) + len(diff) + len(log) + promptOverhead
-
-	var smartDiff string
-
-	if totalSize > maxPromptChars {
-		tap.Message("⚠️  Large changeset detected, selecting most relevant files...")
-
-		smartDiff = buildSmartDiff(fileStats, diff, maxPromptChars-len(status)-len(log)-promptOverhead)
-	} else {
-		smartDiff = diff
-	}
-
-	// Step 4: Generate commit message with Claude
-	sp := tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Generating commit message with Claude")
-
-	commitMsg, err := generateCommitMessage(accessToken, status, smartDiff, log, fileStats, userInput)
-	if err != nil {
-		sp.Stop("Failed to generate commit message", 2)
-		return fmt.Errorf("failed to generate commit message: %w", err)
-	}
-
-	sp.Stop("Commit message generated               ", 0)
-
-	// Show proposed commit message
-	tap.Box(commitMsg, "📋 Proposed Commit Message", tap.BoxOptions{
-		TitleAlign:     tap.BoxAlignLeft,
-		ContentAlign:   tap.BoxAlignLeft,
-		TitlePadding:   1,
-		ContentPadding: 1,
-		Rounded:        true,
-		IncludePrefix:  true,
-		FormatBorder:   tap.GrayBorder,
-	})
-
-	// Step 5: Ask for confirmation unless auto-approval requested
-	proceed := true
-
-	if autoApprove {
-		tap.Message("Auto-approve enabled; skipping confirmation prompt")
-	} else {
-		proceed = tap.Confirm(ctx, tap.ConfirmOptions{
-			Message:      "Proceed with commit?",
-			Active:       "Yes",
-			Inactive:     "No",
-			InitialValue: true,
-		})
-	}
-
-	if !proceed {
-		tap.Message("Commit cancelled")
-		return fmt.Errorf("commit cancelled")
-	}
-
-	// Step 6: Create commit
-	sp = tap.NewSpinner(tap.SpinnerOptions{Indicator: "dots"})
-	sp.Start("Creating commit")
-
-	if err := git.Commit(commitMsg); err != nil {
-		sp.Stop("Failed to create commit", 2)
-		return fmt.Errorf("failed to create commit: %w", err)
-	}
-
-	sp.Stop("Commit created!", 0)
-	tap.Outro("All done!")
-
-	return nil
-}
-
-// cleanStatus strips ANSI codes and trailing whitespace from each line.
-func cleanStatus(s string) string {
+// CleanStatus strips ANSI codes and trailing whitespace from each line.
+func CleanStatus(s string) string {
 	var cleanedLines []string
 
 	for _, line := range strings.Split(s, "\n") {
@@ -226,8 +39,8 @@ func cleanStatus(s string) string {
 	return strings.Join(cleanedLines, "\n")
 }
 
-// buildSmartDiff creates an intelligent diff when the full diff is too large.
-func buildSmartDiff(fileStats []git.FileChange, fullDiff string, budget int) string {
+// BuildSmartDiff creates an intelligent diff when the full diff is too large.
+func BuildSmartDiff(fileStats []git.FileChange, fullDiff string, budget int) string {
 	if len(fileStats) == 0 {
 		return fullDiff
 	}
@@ -293,8 +106,8 @@ func buildSmartDiff(fileStats []git.FileChange, fullDiff string, budget int) str
 	return result.String()
 }
 
-// generateCommitMessage uses Claude to generate a commit message.
-func generateCommitMessage(accessToken, status, diff, log string, fileStats []git.FileChange, userInput string) (string, error) {
+// GenerateMessage uses Claude to generate a commit message.
+func GenerateMessage(accessToken, status, diff, log string, fileStats []git.FileChange, userInput string) (string, error) {
 	// Check if we have file stats and diff looks like our smart diff
 	hasSmartDiff := len(fileStats) > 0 && strings.Contains(diff, "Changed Files Summary:")
 
