@@ -202,7 +202,7 @@ func Run(accessToken, userInput string, autoApprove bool) error {
 	}
 
 	sp.Stop("Commit created!", 0)
-	tap.Outro("All done! ✅")
+	tap.Outro("All done!")
 
 	return nil
 }
