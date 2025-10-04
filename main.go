@@ -23,6 +23,7 @@ var (
 
 var (
 	showVersion bool
+	autoApprove bool
 
 	rootCmd = &cobra.Command{
 		Use:           "gic [commit-message]",
@@ -77,6 +78,7 @@ func main() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
+	rootCmd.Flags().BoolVarP(&autoApprove, "auto-approve", "y", false, "Skip confirmation prompt and create the commit automatically")
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(versionCmd)
 }
@@ -128,7 +130,7 @@ func run(userInput string) error {
 	}
 
 	// Run commit workflow
-	return commit.Run(token.AccessToken, userInput)
+	return commit.Run(token.AccessToken, userInput, autoApprove)
 }
 
 func performOAuthFlow(tokenPath string) (*auth.Token, error) {

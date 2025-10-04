@@ -80,6 +80,14 @@ gic refactored for performance
 
 The text after `gic` is passed to Claude as additional context.
 
+### Skip confirmation
+
+When you already trust the generated message, add `--auto-approve` (or `-y`) to create the commit without the confirmation prompt:
+
+```bash
+gic --auto-approve
+```
+
 ### MCP Server Mode
 
 Start an MCP (Model Context Protocol) server to expose git commit functionality to Claude Code or other MCP clients:

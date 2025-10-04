@@ -25,7 +25,7 @@ const (
 )
 
 // Run executes the commit workflow.
-func Run(accessToken, userInput string) error {
+func Run(accessToken, userInput string, autoApprove bool) error {
 	ctx := context.Background()
 
 	tap.Intro("🤖 Git Commit Assistant")
@@ -173,13 +173,19 @@ func Run(accessToken, userInput string) error {
 		FormatBorder:   tap.CyanBorder,
 	})
 
-	// Step 5: Ask for confirmation
-	proceed := tap.Confirm(ctx, tap.ConfirmOptions{
-		Message:      "Proceed with commit?",
-		Active:       "Yes",
-		Inactive:     "No",
-		InitialValue: true,
-	})
+	// Step 5: Ask for confirmation unless auto-approval requested
+	proceed := true
+
+	if autoApprove {
+		tap.Message("Auto-approve enabled; skipping confirmation prompt")
+	} else {
+		proceed = tap.Confirm(ctx, tap.ConfirmOptions{
+			Message:      "Proceed with commit?",
+			Active:       "Yes",
+			Inactive:     "No",
+			InitialValue: true,
+		})
+	}
 
 	if !proceed {
 		tap.Message("Commit cancelled")
