@@ -143,23 +143,10 @@ func performOAuthFlow(tokenPath string) (*auth.Token, error) {
 	}
 
 	tap.Message("Please visit this URL to authorize:")
-	tap.Box(authURL, "Authorization URL", tap.BoxOptions{
-		TitleAlign:   tap.BoxAlignLeft,
-		ContentAlign: tap.BoxAlignLeft,
-		Rounded:      true,
-		FormatBorder: tap.GrayBorder,
-	})
+	tap.Message(authURL)
 
 	authCode := tap.Text(ctx, tap.TextOptions{
-		Message:     "Paste the authorization code here:",
-		Placeholder: "code#state",
-		Validate: func(s string) error {
-			if !strings.Contains(s, "#") {
-				return fmt.Errorf("code should be in format: code#state")
-			}
-
-			return nil
-		},
+		Message: "Paste the authorization code here:",
 	})
 
 	if authCode == "" {
