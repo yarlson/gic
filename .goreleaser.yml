@@ -109,25 +109,23 @@ release:
     **Full Changelog**: https://github.com/yarlson/cmt/compare/{{.PreviousTag}}...{{.Tag}}
 
 # Homebrew tap
-brews:
+homebrew_casks:
   - repository:
       owner: yarlson
       name: homebrew-tap
       branch: main
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    binaries:
+      - cmt
+    url:
+      verified: github.com/yarlson/cmt/
     homepage: "https://github.com/yarlson/cmt"
     description: "Generate meaningful git commit messages with Claude Code"
-    license: "MIT"
     skip_upload: auto
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
-    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-    test: |
-      system "#{bin}/cmt --version"
-    install: |
-      bin.install "cmt"
+    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
 
 # Docker images (optional)
 # dockers:

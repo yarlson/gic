@@ -2,89 +2,145 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
   pull_request:
-    branches: [master]
+    branches:
+      - master
+  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
-  GO_VERSION: "1.25.0"
+  GO_VERSION: "1.26.6"
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  check:
+    name: Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      - name: Cache Go modules
-        uses: actions/cache@v5
+          cache-dependency-path: go.sum
+      - name: Install check tools
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
         with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          version: 2026.7.13
+          install_args: golangci-lint goreleaser aqua:rhysd/actionlint
+      - name: Run repository checks
+        run: make check
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Format check
-        run: |
-          gofmt -l .
-          test -z "$(gofmt -l .)"
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test
-        run: go test -v -race -coverprofile=coverage.out ./...
-
+  race:
+    name: Race and coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+      - name: Run race tests with coverage
+        run: make coverage
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.out
 
-  lint:
-    runs-on: ubuntu-latest
+  crap:
+    name: CRAP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+      - name: Assess change risk
+        run: make crap
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
-
-  build:
-    runs-on: ubuntu-latest
-    needs: [test, lint]
+  portability:
+    name: Portability
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+      - name: Test and build without CGO
+        run: make no-cgo
+      - name: Build supported targets
+        run: make cross-build
 
-      - name: Build
-        run: go build -v ./...
-
-      - name: Test GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+  vulnerability:
+    name: Vulnerability
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          distribution: goreleaser
-          version: latest
-          args: build --snapshot --clean
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+      - name: Scan reachable vulnerabilities
+        run: make vuln
+
+  snapshot:
+    name: Release snapshot
+    needs:
+      - check
+      - race
+      - crap
+      - portability
+      - vulnerability
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+      - name: Install GoReleaser
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          version: 2026.7.13
+          install_args: goreleaser
+      - name: Build release snapshot
+        run: make snapshot

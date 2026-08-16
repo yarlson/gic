@@ -15,6 +15,9 @@ import (
 // ErrUserCancelled reports that the user declined to create the commit.
 var ErrUserCancelled = errors.New("user cancelled commit")
 
+// ErrNoStagedChanges reports that message generation has no staged input.
+var ErrNoStagedChanges = errors.New("no staged changes to generate a commit message from")
+
 // ConfirmFunc decides whether the workflow should continue after previewing a commit.
 type ConfirmFunc func(context.Context) bool
 
@@ -23,6 +26,29 @@ type Dependencies struct {
 	Git      *git.Client
 	Provider provider.Adapter
 	Confirm  ConfirmFunc
+}
+
+// GenerateMessage generates a commit message without staging or committing changes.
+func GenerateMessage(ctx context.Context, deps Dependencies, userInput string) (string, error) {
+	if deps.Git == nil || deps.Provider == nil {
+		return "", fmt.Errorf("app dependencies are not configured")
+	}
+
+	hasStagedChanges, err := deps.Git.HasStagedChanges(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to check staged changes: %w", err)
+	}
+
+	if !hasStagedChanges {
+		return "", ErrNoStagedChanges
+	}
+
+	message, err := deps.Provider.GenerateCommitMessage(ctx, deps.Git.Dir, userInput)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate commit message: %w", err)
+	}
+
+	return message, nil
 }
 
 // Run executes the commit workflow.

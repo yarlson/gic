@@ -41,8 +41,8 @@ func BuildPrompt(overlay, userInput string) (string, error) {
 		UserInput    string
 		HasUserInput bool
 	}{
-		Overlay:      normalizePromptBlock(overlay, ""),
-		UserInput:    normalizePromptBlock(userInput, ""),
+		Overlay:      normalizePromptBlock(overlay),
+		UserInput:    normalizePromptBlock(userInput),
 		HasUserInput: strings.TrimSpace(userInput) != "",
 	}
 
@@ -55,14 +55,10 @@ func BuildPrompt(overlay, userInput string) (string, error) {
 	return b.String(), nil
 }
 
-func normalizePromptBlock(value, fallback string) string {
+func normalizePromptBlock(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		if fallback == "" {
-			return ""
-		}
-
-		return fallback + "\n"
+		return ""
 	}
 
 	if strings.HasSuffix(value, "\n") {

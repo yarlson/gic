@@ -1,2 +1,5 @@
 /cmt
 /dist
+/target/
+/coverage.out
+/mutation-results.json

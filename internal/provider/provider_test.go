@@ -140,7 +140,7 @@ func TestCodexResolveModelDefersToCLIForChatGPTAuth(t *testing.T) {
 
 	model, err := definition.ResolveModel(context.Background(), stubPath, "")
 	require.NoError(t, err)
-	assert.Equal(t, "", model)
+	assert.Empty(t, model)
 }
 
 func TestCodexResolveModelPreservesExplicitModel(t *testing.T) {
@@ -150,6 +150,66 @@ func TestCodexResolveModelPreservesExplicitModel(t *testing.T) {
 	model, err := definition.ResolveModel(context.Background(), "/does/not/matter", "gpt-5-codex")
 	require.NoError(t, err)
 	assert.Equal(t, "gpt-5-codex", model)
+}
+
+func preflightScript(providerID, authBody string) string {
+	help := "if [ \"$1\" = '--help' ]; then\n" +
+		"  printf '%s\\n' '--ask-for-approval' 'never'\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"if [ \"$1\" = 'exec' ] && [ \"$2\" = '--help' ]; then\n" +
+		"  printf '%s\\n' '--sandbox' 'read-only' '--ignore-user-config' '--ignore-rules' '--output-last-message' '--ephemeral'\n" +
+		"  exit 0\n" +
+		"fi\n"
+	authCommand := "login"
+
+	if providerID == "claude" {
+		help = "if [ \"$1\" = '--help' ]; then\n" +
+			"  printf '%s\\n' '--disable-slash-commands' '--no-session-persistence' '--permission-mode' '--allowedTools' '-p, --print'\n" +
+			"  exit 0\n" +
+			"fi\n"
+		authCommand = "auth"
+	}
+
+	return "#!/bin/sh\n" + help +
+		"if [ \"$1\" = '" + authCommand + "' ] && [ \"$2\" = 'status' ]; then\n" +
+		authBody + "\nfi\nexit 1\n"
+}
+
+func TestPreflightValidatesAuthentication(t *testing.T) {
+	requirePOSIXShell(t)
+
+	tests := []struct {
+		name       string
+		providerID string
+		authBody   string
+		wantError  string
+	}{
+		{name: "claude authenticated", providerID: "claude", authBody: "printf '%s\\n' '{\"loggedIn\": true}'\nexit 0"},
+		{name: "claude reports logged out", providerID: "claude", authBody: "printf '%s\\n' '{\"loggedIn\": false}'\nexit 0", wantError: "not authenticated"},
+		{name: "claude auth command fails", providerID: "claude", authBody: "printf '%s\\n' 'credentials expired' >&2\nexit 1", wantError: "credentials expired"},
+		{name: "codex authenticated", providerID: "codex", authBody: "printf '%s\\n' 'Logged in using ChatGPT'\nexit 0"},
+		{name: "codex reports logged out", providerID: "codex", authBody: "printf '%s\\n' 'Not logged in'\nexit 0", wantError: "not authenticated"},
+		{name: "codex login command fails", providerID: "codex", authBody: "printf '%s\\n' 'token rejected' >&2\nexit 1", wantError: "token rejected"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubDir := t.TempDir()
+			stubPath := writeExecutable(t, stubDir, tt.providerID, preflightScript(tt.providerID, tt.authBody))
+			definition, err := provider.Lookup(tt.providerID)
+			require.NoError(t, err)
+
+			err = provider.Preflight(t.Context(), definition, stubPath)
+			if tt.wantError == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantError)
+		})
+	}
 }
 
 func TestPreflightFailsWhenRequiredCapabilityIsMissing(t *testing.T) {

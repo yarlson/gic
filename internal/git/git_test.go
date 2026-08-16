@@ -27,7 +27,7 @@ func initRepo(t *testing.T) (string, string) {
 		{"config", "user.name", "Test User"},
 		{"config", "user.email", "test@example.com"},
 	} {
-		cmd := exec.Command(gitPath, args...)
+		cmd := exec.CommandContext(t.Context(), gitPath, args...)
 		cmd.Dir = repoDir
 		out, err := cmd.CombinedOutput()
 		require.NoErrorf(t, err, "git %v failed: %s", args, out)
@@ -50,11 +50,7 @@ func TestClientUsesConfiguredDir(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "tracked.txt"), []byte("content"), 0o644))
 
 	otherDir := t.TempDir()
-	oldDir, err := os.Getwd()
-	require.NoError(t, err)
-
-	t.Cleanup(func() { _ = os.Chdir(oldDir) })
-	require.NoError(t, os.Chdir(otherDir))
+	t.Chdir(otherDir)
 
 	status, err := client.Status(context.Background())
 	require.NoError(t, err)
@@ -85,6 +81,23 @@ func TestAddAndCommit(t *testing.T) {
 	status, err := client.Status(context.Background())
 	require.NoError(t, err)
 	assert.Empty(t, status)
+}
+
+func TestHasStagedChangesIgnoresUnstagedFiles(t *testing.T) {
+	repoDir, gitPath := initRepo(t)
+	client := git.NewClient(repoDir, gitPath)
+
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "unstaged.txt"), []byte("unstaged"), 0o644))
+
+	hasStagedChanges, err := client.HasStagedChanges(context.Background())
+	require.NoError(t, err)
+	assert.False(t, hasStagedChanges)
+
+	require.NoError(t, client.Add(context.Background(), "unstaged.txt"))
+
+	hasStagedChanges, err = client.HasStagedChanges(context.Background())
+	require.NoError(t, err)
+	assert.True(t, hasStagedChanges)
 }
 
 func TestStatusHonorsContextCancellation(t *testing.T) {

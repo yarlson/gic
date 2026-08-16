@@ -24,6 +24,7 @@ var (
 var (
 	showVersion  bool
 	autoApprove  bool
+	messageOnly  bool
 	modelFlag    string
 	providerFlag string
 
@@ -39,9 +40,13 @@ var (
 				return nil
 			}
 
+			if messageOnly && autoApprove {
+				return fmt.Errorf("--message-only cannot be combined with --auto-approve")
+			}
+
 			userInput := strings.Join(args, " ")
 
-			return run(cmd.Context(), cmd, userInput)
+			return run(cmd.Context(), cmd, userInput, messageOnly)
 		},
 	}
 
@@ -67,6 +72,7 @@ func main() {
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
 	rootCmd.Flags().BoolVarP(&autoApprove, "auto-approve", "y", false, "Skip confirmation prompt and create the commit automatically")
+	rootCmd.Flags().BoolVar(&messageOnly, "message-only", false, "Generate a commit message from staged changes without creating a commit")
 	rootCmd.Flags().StringVar(&providerFlag, "provider", "", "Provider to use (`claude` or `codex`)")
 	rootCmd.Flags().StringVar(&modelFlag, "model", "", "Model name to use (defaults depend on the selected provider)")
 	rootCmd.AddCommand(versionCmd)
@@ -92,7 +98,7 @@ func printVersion() {
 	tap.Outro("Run `cmt` without flags to launch the assistant ✨")
 }
 
-func run(ctx context.Context, cmd *cobra.Command, userInput string) error {
+func run(ctx context.Context, cmd *cobra.Command, userInput string, messageOnly bool) error {
 	gitPath, err := exec.LookPath("git")
 	if err != nil {
 		return fmt.Errorf("required executable `git` not found in $PATH: %w", err)
@@ -116,15 +122,9 @@ func run(ctx context.Context, cmd *cobra.Command, userInput string) error {
 
 	explicitModel := resolveOption(cmd, "model", "CMT_MODEL", "")
 
-	effectiveModel := definition.DefaultModel
-
-	if definition.ResolveModel != nil {
-		effectiveModel, err = definition.ResolveModel(ctx, executablePath, explicitModel)
-		if err != nil {
-			return err
-		}
-	} else if explicitModel != "" {
-		effectiveModel = explicitModel
+	effectiveModel, err := definition.ResolveModel(ctx, executablePath, explicitModel)
+	if err != nil {
+		return err
 	}
 
 	repoDir, err := os.Getwd()
@@ -133,11 +133,25 @@ func run(ctx context.Context, cmd *cobra.Command, userInput string) error {
 	}
 
 	adapter := definition.NewAdapter(executablePath, effectiveModel)
-
-	return app.Run(ctx, app.Dependencies{
+	deps := app.Dependencies{
 		Git:      git.NewClient(repoDir, gitPath),
 		Provider: adapter,
-	}, userInput, autoApprove)
+	}
+
+	if messageOnly {
+		message, err := app.GenerateMessage(ctx, deps, userInput)
+		if err != nil {
+			return err
+		}
+
+		if _, err := fmt.Fprintln(cmd.OutOrStdout(), message); err != nil {
+			return fmt.Errorf("failed to write commit message: %w", err)
+		}
+
+		return nil
+	}
+
+	return app.Run(ctx, deps, userInput, autoApprove)
 }
 
 func resolveOption(cmd *cobra.Command, flagName, envName, fallback string) string {

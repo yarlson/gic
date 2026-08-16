@@ -1,0 +1,7 @@
+unleash:
+  output: mutation-results.json
+  output-statuses: lctv
+  workers: 4
+  timeout-coefficient: 100
+  threshold:
+    efficacy: 99.9

@@ -1,14 +1,51 @@
 version: "2"
 
 linters:
+  default: standard
   enable:
+    - bodyclose
+    - contextcheck
+    - durationcheck
+    - errcheck
+    - errorlint
+    - govet
+    - ineffassign
+    - makezero
+    - misspell
+    - nilerr
+    - nilnesserr
+    - noctx
+    - reassign
+    - revive
     - staticcheck
+    - testifylint
+    - unconvert
+    - unparam
+    - unused
+    - usetesting
+    - wastedassign
     - wsl_v5
+  exclusions:
+    generated: strict
+    presets:
+      - std-error-handling
   settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
     wsl_v5:
       allow-first-in-block: true
       allow-whole-block: false
       branch-max-lines: 2
-    staticcheck:
-      checks:
-        - "-ST1001"
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      module-path: cmt
+    goimports:
+      local-prefixes:
+        - cmt

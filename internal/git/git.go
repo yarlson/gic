@@ -31,6 +31,16 @@ func (c *Client) Status(ctx context.Context) (string, error) {
 	return c.run(ctx, "status", "--porcelain")
 }
 
+// HasStagedChanges reports whether the index differs from HEAD.
+func (c *Client) HasStagedChanges(ctx context.Context) (bool, error) {
+	files, err := c.run(ctx, "diff", "--cached", "--name-only", "-z", "--")
+	if err != nil {
+		return false, err
+	}
+
+	return files != "", nil
+}
+
 // Log returns recent commit messages (last 10).
 func (c *Client) Log(ctx context.Context) (string, error) {
 	hasCommits, err := c.hasCommits(ctx)

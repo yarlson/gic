@@ -104,6 +104,17 @@ Skip the confirmation prompt when you want `cmt` to commit immediately:
 cmt --auto-approve
 ```
 
+Generate only a commit message from changes you have already staged:
+
+```bash
+git add path/to/file
+cmt --message-only
+```
+
+This mode prints only the generated message. It does not stage files, show the
+interactive UI, prompt for confirmation, or create a commit. It exits with an
+error when there are no staged changes.
+
 Use Codex for a single run:
 
 ```bash
@@ -150,6 +161,8 @@ When you run `cmt`, it:
 - `cmt` stages all current changes before generating the commit message.
 - Positional arguments after `cmt` are forwarded to the provider as additional
   context.
+- `--message-only` generates from changes that are already staged, does not
+  stage other changes, and cannot be combined with `--auto-approve`.
 - `cmt` preflights provider binary presence, required CLI capabilities, and
   auth status before any staging or UI work.
 - `cmt` runs providers non-interactively. Codex runs in a read-only sandbox;
@@ -176,15 +189,40 @@ If `cmt` fails before showing the UI, check these first:
 
 ## Contributing
 
-Use Go 1.25 or newer and run the same checks that CI runs before opening a
-change:
+The repository pins Go and its development tools in `mise.toml`:
 
 ```bash
-gofmt -w .
-go vet ./...
-go test -race ./...
-golangci-lint run
+mise trust
+mise install
 ```
+
+Run the normal development gate with:
+
+```bash
+make check
+```
+
+Run the broader delivery gate with:
+
+```bash
+make ci
+```
+
+Use focused gates while changing their contracts:
+
+```bash
+make race
+make crap
+make mutation
+make no-cgo
+make cross-build
+make vuln
+make snapshot
+```
+
+`make mutation` stays separate from `make ci` because whole-module mutation
+testing is slower. New and heavily changed production functions must keep every
+numeric CRAP score below 15.
 
 ## Support
 

@@ -29,7 +29,7 @@ func initRepo(t *testing.T) (string, string) {
 		{"config", "user.name", "Test User"},
 		{"config", "user.email", "test@example.com"},
 	} {
-		cmd := exec.Command(gitPath, args...)
+		cmd := exec.CommandContext(t.Context(), gitPath, args...)
 		cmd.Dir = repoDir
 		out, err := cmd.CombinedOutput()
 		require.NoErrorf(t, err, "git %v failed: %s", args, out)
@@ -90,11 +90,69 @@ func TestRunAutoApproveCreatesCommitFromProvider(t *testing.T) {
 	err := app.Run(context.Background(), newDependencies(repoDir, gitPath, adapter), "wire provider bootstrap", true)
 	require.NoError(t, err)
 
-	out, err := exec.Command(gitPath, "-C", repoDir, "log", "-1", "--pretty=%s").Output()
+	out, err := exec.CommandContext(t.Context(), gitPath, "-C", repoDir, "log", "-1", "--pretty=%s").Output()
 	require.NoError(t, err)
 	assert.Equal(t, expected, strings.TrimSpace(string(out)))
 	assert.Equal(t, repoDir, adapter.repoDir)
 	assert.Equal(t, "wire provider bootstrap", adapter.userHint)
+}
+
+func TestGenerateMessageUsesStagedChangesWithoutMutatingRepository(t *testing.T) {
+	repoDir, gitPath := initRepo(t)
+	client := git.NewClient(repoDir, gitPath)
+
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "staged.txt"), []byte("staged"), 0o644))
+	require.NoError(t, client.Add(context.Background(), "staged.txt"))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "unstaged.txt"), []byte("unstaged"), 0o644))
+
+	statusBefore, err := client.Status(context.Background())
+	require.NoError(t, err)
+
+	headBefore, err := exec.CommandContext(t.Context(), gitPath, "-C", repoDir, "rev-parse", "HEAD").Output()
+	require.NoError(t, err)
+
+	adapter := &stubProvider{message: "Add staged behavior"}
+	message, err := app.GenerateMessage(
+		context.Background(),
+		newDependencies(repoDir, gitPath, adapter),
+		"describe the staged change",
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "Add staged behavior", message)
+	assert.Equal(t, repoDir, adapter.repoDir)
+	assert.Equal(t, "describe the staged change", adapter.userHint)
+
+	statusAfter, err := client.Status(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, statusBefore, statusAfter)
+
+	headAfter, err := exec.CommandContext(t.Context(), gitPath, "-C", repoDir, "rev-parse", "HEAD").Output()
+	require.NoError(t, err)
+	assert.Equal(t, headBefore, headAfter)
+}
+
+func TestGenerateMessageRequiresStagedChanges(t *testing.T) {
+	repoDir, gitPath := initRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "unstaged.txt"), []byte("unstaged"), 0o644))
+
+	adapter := &stubProvider{message: "should not be used"}
+	message, err := app.GenerateMessage(context.Background(), newDependencies(repoDir, gitPath, adapter), "")
+	require.ErrorIs(t, err, app.ErrNoStagedChanges)
+	assert.Empty(t, message)
+	assert.Empty(t, adapter.repoDir)
+}
+
+func TestGenerateMessagePropagatesProviderFailure(t *testing.T) {
+	repoDir, gitPath := initRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "staged.txt"), []byte("staged"), 0o644))
+	require.NoError(t, git.NewClient(repoDir, gitPath).Add(context.Background(), "staged.txt"))
+
+	adapter := &stubProvider{err: errors.New("provider boom")}
+	message, err := app.GenerateMessage(context.Background(), newDependencies(repoDir, gitPath, adapter), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to generate commit message")
+	assert.Contains(t, err.Error(), "provider boom")
+	assert.Empty(t, message)
 }
 
 func TestRunReturnsNilWhenStatusIsEmpty(t *testing.T) {
@@ -103,7 +161,7 @@ func TestRunReturnsNilWhenStatusIsEmpty(t *testing.T) {
 
 	err := app.Run(context.Background(), newDependencies(repoDir, gitPath, adapter), "", true)
 	require.NoError(t, err)
-	assert.Equal(t, "", adapter.repoDir)
+	assert.Empty(t, adapter.repoDir)
 }
 
 func TestRunReturnsErrUserCancelled(t *testing.T) {
@@ -116,6 +174,27 @@ func TestRunReturnsErrUserCancelled(t *testing.T) {
 
 	err := app.Run(context.Background(), deps, "", false)
 	require.ErrorIs(t, err, app.ErrUserCancelled)
+}
+
+func TestRunUsesConfirmationResult(t *testing.T) {
+	repoDir, gitPath := initRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "feature.txt"), []byte("feature"), 0o644))
+
+	adapter := &stubProvider{message: "Add feature"}
+	deps := newDependencies(repoDir, gitPath, adapter)
+	confirmationCalled := false
+	deps.Confirm = func(context.Context) bool {
+		confirmationCalled = true
+
+		return true
+	}
+
+	require.NoError(t, app.Run(t.Context(), deps, "", false))
+	assert.True(t, confirmationCalled)
+
+	message, err := exec.CommandContext(t.Context(), gitPath, "-C", repoDir, "log", "-1", "--pretty=%s").Output()
+	require.NoError(t, err)
+	assert.Equal(t, "Add feature", strings.TrimSpace(string(message)))
 }
 
 func TestRunPropagatesProviderFailure(t *testing.T) {

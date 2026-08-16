@@ -1,0 +1,6 @@
+[tools]
+go = "1.26.6"
+golangci-lint = "2.12.2"
+goreleaser = "2.17.0"
+"github:go-gremlins/gremlins" = "0.6.0"
+"aqua:rhysd/actionlint" = "1.7.12"
