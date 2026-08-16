@@ -1,127 +1,160 @@
 # cmt
 
-`cmt` generates git commit messages with a local AI coding CLI for the
-repository you are currently in, then lets you review and create the commit.
-
-It is built for developers who want faster commits without losing intent:
-
-- stages the current working tree
-- asks the selected provider CLI to inspect the staged snapshot and draft the
-  message
-- shows the proposed message before committing
-
-`cmt` supports two hardcoded providers:
-
-- `claude` via the Claude Code CLI
-- `codex` via the Codex CLI
-
-Default provider: `claude`
-
-Default models:
-
-- `claude`: `sonnet`
-- `codex`: Codex CLI default for the active auth mode
+`cmt` uses a local Claude Code or Codex CLI to write a Git commit message.
+It can create the commit or print only the message.
 
 ## Requirements
 
-- `git`
-- a git repository with changes to commit
-- one supported provider CLI installed and authenticated:
-  - Claude Code CLI (`claude`)
-  - Codex CLI (`codex`)
+You need:
 
-`cmt` shells out to a local provider CLI. Install Claude Code from
-[claude.ai/code](https://claude.ai/code) or Codex from the
-[OpenAI Codex docs](https://platform.openai.com/docs/codex/overview), then make
-sure the selected CLI works in your shell before using `cmt`.
+- Git
+- a Git repository
+- Claude Code or Codex on `PATH`
+- an authenticated provider CLI
 
-Tested CLI versions:
-
-- Claude Code CLI `2.1.139`
-- Codex CLI `0.130.0`
-
-These are documented test targets, not hard version gates. If a required CLI
-flag or subcommand is missing, `cmt` fails during provider preflight with a
-clear error instead of falling back.
+Use `claude auth login` to authenticate Claude Code.
+Use `codex login` to authenticate Codex.
 
 ## Install
 
-### Quick install
+### Homebrew
+
+The Homebrew tap publishes `cmt` as a Cask.
+
+```bash
+brew tap yarlson/homebrew-tap
+brew install --cask cmt
+```
+
+### Install script
+
+This command installs the latest GitHub release in `/usr/local/bin`.
+The install step uses `sudo`.
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/yarlson/cmt/master/install.sh | bash
 ```
 
-The installer detects your OS and architecture and installs `cmt` to
-`/usr/local/bin`.
-
-Install a specific version:
+Pass a tag to install one release:
 
 ```bash
-cmt_VERSION=v0.2.0 curl -sSL https://raw.githubusercontent.com/yarlson/cmt/master/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/yarlson/cmt/master/install.sh | bash -s v0.11.0
 ```
+
+You can also set `cmt_VERSION`:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/yarlson/cmt/master/install.sh | bash -s v0.2.0
+cmt_VERSION=v0.11.0 curl -sSL https://raw.githubusercontent.com/yarlson/cmt/master/install.sh | bash
 ```
 
-### Homebrew
+The release process builds these targets:
 
-```bash
-brew tap yarlson/homebrew-tap
-brew install cmt
-```
+- macOS on AMD64 and ARM64
+- Linux on AMD64 and ARM64
+- Windows on AMD64
 
 ### Build from source
 
-Requires Go 1.25 or newer.
+The Go module requires Go 1.26.6.
 
 ```bash
 git clone https://github.com/yarlson/cmt.git
 cd cmt
-go build
-sudo mv cmt /usr/local/bin/
+go build -o cmt .
 ```
 
-## Quick start
+## Create a commit
 
-Run `cmt` inside a git repository:
+Run `cmt` in a Git repository:
 
 ```bash
 cmt
 ```
 
-Add short context when the intent is not obvious from the diff:
+Normal mode performs these steps:
+
+1. It checks Git and the selected provider.
+2. It runs `git add .` from the current directory.
+3. It shows the repository status.
+4. It asks the provider to write a commit message.
+5. It shows the message and asks for confirmation.
+6. It creates the commit with `git commit -m`.
+
+Run `cmt` from the directory whose changes you want to stage.
+Git stages changed files at and below that directory.
+
+Add a short hint when the staged diff does not show the full intent:
 
 ```bash
-cmt fix the auth session regression
-cmt clarify retry behavior for failed syncs
+cmt fix the expired-session redirect
+cmt explain why retries stop after the third failure
 ```
 
-Skip the confirmation prompt when you want `cmt` to commit immediately:
+`cmt` sends all positional arguments to the provider as one user hint.
 
-```bash
-cmt --auto-approve
-```
+## Generate only a message
 
-Generate only a commit message from changes you have already staged:
+Stage the files before you use `--message-only`:
 
 ```bash
 git add path/to/file
 cmt --message-only
 ```
 
-This mode prints only the generated message. It does not stage files, show the
-interactive UI, prompt for confirmation, or create a commit. It exits with an
-error when there are no staged changes.
+This mode:
 
-Use Codex for a single run:
+- bases the message on the existing staged snapshot
+- prints the generated message to standard output
+- does not stage files
+- does not show the interactive interface
+- does not ask for confirmation
+- does not create a commit
+- does not change the working tree, Git index, or `HEAD`
+
+The command returns an error if the Git index has no staged changes.
+
+You can pass a hint in this mode:
+
+```bash
+cmt --message-only focus on the user-visible behavior
+```
+
+You can pass the output to Git:
+
+```bash
+git commit -m "$(cmt --message-only)"
+```
+
+## Skip confirmation
+
+Use `--auto-approve` or `-y` to create the commit without a confirmation prompt:
+
+```bash
+cmt --auto-approve
+cmt -y
+```
+
+Normal mode still shows status and message output before it creates the commit.
+You cannot combine `--auto-approve` with `--message-only`.
+
+## Select a provider and model
+
+`cmt` supports two providers:
+
+| Provider    | Select it           | Default model         |
+| ----------- | ------------------- | --------------------- |
+| Claude Code | `--provider claude` | `sonnet`              |
+| Codex       | `--provider codex`  | The Codex CLI default |
+
+Claude Code is the default provider.
+
+Select Codex for one command:
 
 ```bash
 cmt --provider codex
 ```
 
-Use a different model for a single run:
+Set a model for one command:
 
 ```bash
 cmt --model haiku
@@ -135,100 +168,139 @@ export CMT_PROVIDER=codex
 export CMT_MODEL=gpt-5
 ```
 
-Show version information:
+Command flags take priority over environment variables.
+Environment variables take priority over provider defaults.
+Empty values do not replace provider defaults.
+
+`cmt` passes an explicit model name to the provider CLI.
+The provider reports an error if it does not accept that name.
+
+## Provider access
+
+`cmt` checks the provider command, required options, and authentication before it stages files.
+Both providers run as local processes in the current repository.
+
+The prompt asks each provider to inspect these Git commands:
+
+- `git status --porcelain`
+- `git diff --cached`
+- `git log -10 --oneline`
+
+The prompt tells the provider to base the message on the staged snapshot.
+It also tells the provider to ignore unstaged changes and avoid write commands.
+The provider can still read the live repository, so unstaged data is not fully isolated.
+
+Codex runs with an ephemeral, read-only sandbox.
+It ignores Codex user configuration and repository rules for this command.
+
+Claude Code runs without session persistence or slash commands.
+`cmt` passes an allowlist for Git inspection commands.
+It also uses Claude Code's `bypassPermissions` mode for non-interactive use.
+
+## Version information
+
+Both commands show the release version and build time:
 
 ```bash
 cmt --version
 cmt version
 ```
 
-## What `cmt` does
+## Errors
 
-When you run `cmt`, it:
+`cmt` writes errors to standard error and exits with a non-zero status.
 
-1. stages changes with `git add .`
-2. reads staged repository status
-3. asks the selected provider CLI to inspect the repo and draft a commit message
-4. shows the proposed message
-5. creates the commit after confirmation, or immediately with `-y`
+- A missing `git`, `claude`, or `codex` command causes the startup checks to fail.
+- An unsupported provider value lists the supported providers.
+- A missing provider option causes the capability check to fail.
+- Failed authentication asks you to run `claude auth login` or `codex login`.
+- An empty provider response causes message generation to fail.
+- `cmt` reports Git stage and commit failures.
 
-## Behavior to know
+## Development
 
-- Provider selection precedence is `--provider`, then `CMT_PROVIDER`, then the
-  default provider `claude`.
-- Model selection precedence is `--model`, then `CMT_MODEL`, then the selected
-  provider's default model.
-- `cmt` stages all current changes before generating the commit message.
-- Positional arguments after `cmt` are forwarded to the provider as additional
-  context.
-- `--message-only` generates from changes that are already staged, does not
-  stage other changes, and cannot be combined with `--auto-approve`.
-- `cmt` preflights provider binary presence, required CLI capabilities, and
-  auth status before any staging or UI work.
-- `cmt` runs providers non-interactively. Codex runs in a read-only sandbox;
-  Claude is constrained with non-interactive execution, no session
-  persistence, disabled slash commands, and read-only git inspection commands
-  as far as the CLI allows.
-- When Codex is authenticated with ChatGPT, `cmt` defers to the Codex CLI's
-  built-in default model unless you explicitly set `--model` or `CMT_MODEL`.
-- Invalid model names are passed through to the provider CLI and fail there.
-- The generated message is intended to explain why the change was made, not
-  just restate the diff.
-- The staged snapshot is the source of truth, but provider CLIs still inspect
-  the live repository. That means unstaged-context leakage is reduced, not
-  eliminated.
+### Set up the toolchain
 
-## Troubleshooting
-
-If `cmt` fails before showing the UI, check these first:
-
-- the selected provider CLI is installed and available on `PATH`
-- the selected provider CLI is already authenticated
-- you are inside a git repository
-- `git config user.name` and `git config user.email` are set
-
-## Contributing
-
-The repository pins Go and its development tools in `mise.toml`:
+Mise pins Go and the development tools in `mise.toml`.
 
 ```bash
 mise trust
 mise install
 ```
 
-Run the normal development gate with:
+The file pins these tools:
+
+- Go
+- golangci-lint
+- GoReleaser
+- Gremlins
+- actionlint
+
+Tests use Testify.
+Use `require` for setup that must succeed.
+Use `assert` for independent outcomes.
+
+### Run checks
+
+Run the standard checks:
 
 ```bash
-make check
+mise exec -- make check
 ```
 
-Run the broader delivery gate with:
+This command checks workflows, formatting, lint, vet, tests, builds, modules,
+and the GoReleaser configuration.
+
+Run all delivery checks:
 
 ```bash
-make ci
+mise exec -- make ci
 ```
 
-Use focused gates while changing their contracts:
+This command adds:
+
+- race detection
+- CRAP scores
+- tests and builds without CGO
+- builds for supported targets
+- a vulnerability scan
+- a release snapshot
+
+Run mutation tests separately:
 
 ```bash
-make race
-make crap
-make mutation
-make no-cgo
-make cross-build
-make vuln
-make snapshot
+mise exec -- make mutation
 ```
 
-`make mutation` stays separate from `make ci` because whole-module mutation
-testing is slower. New and heavily changed production functions must keep every
-numeric CRAP score below 15.
+The mutation check fails if a code change survives or times out.
+A surviving change is a change that the tests did not detect.
+The configured mutation efficacy threshold is 99.9 percent.
+
+Every numeric CRAP score must stay below 15.
+
+Use a focused target when you work on one check:
+
+```bash
+mise exec -- make test
+mise exec -- make race
+mise exec -- make coverage
+mise exec -- make crap
+mise exec -- make vuln
+mise exec -- make no-cgo
+mise exec -- make cross-build
+mise exec -- make snapshot
+```
+
+### Release
+
+Push a tag whose name starts with `v` to start the release workflow.
+The workflow runs the tests and then runs GoReleaser.
+GoReleaser publishes the GitHub release and updates the Homebrew Cask.
 
 ## Support
 
-Open an issue in this repository if the CLI behaves unexpectedly or if the
-README is missing a setup path you needed.
+Open an issue at <https://github.com/yarlson/cmt/issues>.
 
 ## License
 
-See [LICENSE](LICENSE).
+`cmt` uses the [MIT License](LICENSE).
